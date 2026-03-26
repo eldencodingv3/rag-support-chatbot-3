@@ -1,7 +1,7 @@
 {
   "name": "rag-support-chatbot",
   "version": "1.0.0",
-  "description": "Node.js RAG chatbot for customer support using LanceDB and OpenAI",
+  "description": "Node.js RAG chatbot for customer support using OpenAI",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "express": "^4.21.0",
-    "openai": "^4.73.0",
-    "vectordb": "^0.21.0"
+    "openai": "^4.73.0"
   }
 }

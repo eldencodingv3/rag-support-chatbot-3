@@ -1,40 +1,43 @@
-const lancedb = require('vectordb');
 const path = require('path');
 const fs = require('fs');
 const { getEmbedding } = require('./embeddings');
 
-const DB_PATH = path.join(__dirname, '../data/lancedb');
-const TABLE_NAME = 'faqs';
-let table = null;
+let faqStore = []; // {vector, question, answer, text}
+
+function cosineSimilarity(a, b) {
+  let dot = 0, magA = 0, magB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    magA += a[i] * a[i];
+    magB += b[i] * b[i];
+  }
+  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+}
 
 async function initVectorStore() {
   const faqs = JSON.parse(
     fs.readFileSync(path.join(__dirname, '../data/faqs.json'), 'utf-8')
   );
-  const db = await lancedb.connect(DB_PATH);
 
-  // Generate embeddings for all FAQs
-  const records = [];
+  faqStore = [];
   for (const faq of faqs) {
     const text = `${faq.question} ${faq.answer}`;
     const vector = await getEmbedding(text);
-    records.push({ vector, question: faq.question, answer: faq.answer, text });
+    faqStore.push({ vector, question: faq.question, answer: faq.answer, text });
   }
-
-  // Drop table if exists, then create
-  try {
-    await db.dropTable(TABLE_NAME);
-  } catch (e) {
-    // Table may not exist yet, ignore
-  }
-  table = await db.createTable(TABLE_NAME, records);
-  console.log(`Loaded ${records.length} FAQs into vector store`);
+  console.log(`Loaded ${faqStore.length} FAQs into vector store`);
 }
 
 async function searchFaqs(queryVector, limit = 3) {
-  if (!table) throw new Error('Vector store not initialized');
-  const results = await table.search(queryVector).limit(limit).execute();
-  return results;
+  if (faqStore.length === 0) throw new Error('Vector store not initialized');
+
+  const scored = faqStore.map(item => ({
+    ...item,
+    score: cosineSimilarity(queryVector, item.vector)
+  }));
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, limit);
 }
 
 module.exports = { initVectorStore, searchFaqs };
