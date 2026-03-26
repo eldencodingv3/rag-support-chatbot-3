@@ -7,12 +7,17 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
+let vectorStoreReady = false;
+
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
+  res.json({ status: 'ok', vectorStore: vectorStoreReady });
 });
 
 app.post('/api/chat', async (req, res) => {
   try {
+    if (!vectorStoreReady) {
+      return res.status(503).json({ error: 'Vector store is still initializing. Please try again in a moment.' });
+    }
     const { message } = req.body;
     if (!message) return res.status(400).json({ error: 'Message is required' });
     const reply = await chat(message);
@@ -25,9 +30,16 @@ app.post('/api/chat', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-async function start() {
-  await initVectorStore();
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-}
-
-start().catch(console.error);
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  // Initialize vector store in background
+  initVectorStore()
+    .then(() => {
+      vectorStoreReady = true;
+      console.log('Vector store initialized successfully');
+    })
+    .catch((err) => {
+      console.error('Failed to initialize vector store:', err.message);
+      console.error('Chat will not work until vector store is initialized');
+    });
+});

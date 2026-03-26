@@ -1,4 +1,4 @@
-const lancedb = require('@lancedb/lancedb');
+const lancedb = require('vectordb');
 const path = require('path');
 const fs = require('fs');
 const { getEmbedding } = require('./embeddings');
@@ -33,7 +33,7 @@ async function initVectorStore() {
 
 async function searchFaqs(queryVector, limit = 3) {
   if (!table) throw new Error('Vector store not initialized');
-  const results = await table.vectorSearch(queryVector).limit(limit).toArray();
+  const results = await table.search(queryVector).limit(limit).execute();
   return results;
 }
 
